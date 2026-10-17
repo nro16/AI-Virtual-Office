@@ -26,6 +26,7 @@ import { maybeRunPaCheck, paDue, readPaFlags, readPaLastRun } from "./worker/pa.
 import { PREFS_STATE_KEY, PREF_KEYS, RESET_PREFS_ACTION, SET_PREFS_ACTION } from "./shared/prefs.js";
 import { buildFleetHealth, formatFleetHealth, loadFleetRuns } from "./worker/fleet-health.js";
 import { registerMeeting } from "./worker/meeting.js";
+import { registerLessons } from "./worker/lessons.js";
 
 const ISSUE_LIMIT = 500;
 const HANDOFF_KEEP_MS = 60_000;
@@ -301,6 +302,7 @@ const plugin = definePlugin({
     registerLayout(ctx, (companyId) => loadSettings(ctx, companyId), async (companyId) => (await loadSnapshot(ctx, companyId)).agentRows);
     registerDecisions(ctx);
     registerMeeting(ctx);
+    registerLessons(ctx);
   },
 
   async onHealth() {

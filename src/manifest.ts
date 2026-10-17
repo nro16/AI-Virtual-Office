@@ -5,6 +5,7 @@ import { DEFAULTS } from "./shared/settings.js";
 import { PRESET_IDS } from "./layout/presets.js";
 import { LAYOUT_SPEC_SCHEMA } from "./layout/spec.js";
 import { SET_LAYOUT_TOOL } from "./shared/layout.js";
+import { ADD_LESSON_TOOL, ADD_LESSON_TOOL_SPEC } from "./shared/lessons.js";
 
 const manifest: PaperclipPluginManifestV1 = {
   id: "paperclip-office",
@@ -37,6 +38,7 @@ const manifest: PaperclipPluginManifestV1 = {
     "agent.sessions.list",
     "agent.sessions.send",
     "agent.sessions.close",
+    "events.subscribe",
     "ui.page.register",
     "ui.sidebar.register",
     "ui.dashboardWidget.register",
@@ -63,6 +65,7 @@ const manifest: PaperclipPluginManifestV1 = {
         },
       },
     },
+    { name: ADD_LESSON_TOOL, ...ADD_LESSON_TOOL_SPEC },
     {
       name: SET_LAYOUT_TOOL,
       displayName: "Set office layout",

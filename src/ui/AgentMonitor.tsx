@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { usePluginData, useHostNavigation } from "@paperclipai/plugin-sdk/ui";
+import { usePluginAction, usePluginData, useHostNavigation } from "@paperclipai/plugin-sdk/ui";
+import { LESSONS_DATA_KEY, LESSON_ADD_ACTION, LESSON_DELETE_ACTION, LESSON_MAX_CHARS, MAX_LESSONS, type LessonVerdict, type LessonsView } from "../shared/lessons.js";
 import { useStore } from "../adapters/store.js";
 import type { OfficeState } from "../shared/office.js";
 import { formatSpend } from "../shared/cost.js";
@@ -16,9 +17,9 @@ const LED_COLOR: Record<OfficeState | "stuck", string> = {
   stuck: "oklch(58% 0.22 25)",
 };
 
-const TABS = ["Status", "Issues", "Runs", "Terminal", "Team", "Scores"] as const;
+const TABS = ["Status", "Issues", "Runs", "Terminal", "Team", "Scores", "Lessons"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_ICON: Record<Tab, string> = { Status: "▣", Issues: "≡", Runs: "▶", Terminal: "⌨", Team: "⌥", Scores: "★" };
+const TAB_ICON: Record<Tab, string> = { Status: "▣", Issues: "≡", Runs: "▶", Terminal: "⌨", Team: "⌥", Scores: "★", Lessons: "✎" };
 
 export function ago(iso: string | null): string {
   if (!iso) return "";
@@ -158,6 +159,80 @@ function ScoresTab({ data, rank, of }: { data: AgentDetail; rank: number | null;
   );
 }
 
+function LessonsTab({ companyId, agentId, agentName, people }: { companyId: string; agentId: string; agentName: string; people: Map<string, string> }) {
+  const { data, refresh } = usePluginData<LessonsView>(LESSONS_DATA_KEY, { companyId, agentId });
+  const add = usePluginAction(LESSON_ADD_ACTION);
+  const remove = usePluginAction(LESSON_DELETE_ACTION);
+  const [view, setView] = useState<LessonsView | null>(null);
+  const [verdict, setVerdict] = useState<LessonVerdict>("good");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (data) setView(data);
+  }, [data]);
+
+  async function run(fn: () => Promise<unknown>) {
+    setBusy(true);
+    setErr(null);
+    try {
+      setView((await fn()) as LessonsView);
+      void refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const save = () => {
+    if (!text.trim()) return;
+    void run(() => add({ companyId, agentId, verdict, text }));
+    setText("");
+  };
+
+  const lessons = view?.lessons ?? [];
+  return (
+    <div>
+      <div className="am-dim" style={{ marginBottom: 10 }}>
+        {agentName} reads these on every run. The newest {MAX_LESSONS} are kept.
+      </div>
+      <div className="am-label">Add a lesson</div>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <button className={`am-chip${verdict === "good" ? " is-on" : ""}`} onClick={() => setVerdict("good")}>Good</button>
+        <button className={`am-chip${verdict === "needs_work" ? " is-on is-bad" : ""}`} onClick={() => setVerdict("needs_work")}>Needs work</button>
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          className="am-input"
+          value={text}
+          maxLength={LESSON_MAX_CHARS}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") save(); }}
+          placeholder={verdict === "good" ? "What to keep doing, e.g. clear short summaries" : "What to avoid, e.g. forgot to attach the file"}
+        />
+        <button className="am-chip is-on" disabled={busy || !text.trim()} onClick={save}>Save</button>
+      </div>
+      {err && <div className="am-error" style={{ marginTop: 6 }}>{err}</div>}
+      {view?.fileError && <div className="am-error" style={{ marginTop: 6 }}>{view.fileError}</div>}
+      <div className="am-label" style={{ marginTop: 14 }}>Lessons ({lessons.length})</div>
+      {lessons.length === 0 && <span className="am-dim">none yet</span>}
+      {lessons.map((l) => (
+        <div key={l.id} className="am-run">
+          <div className="am-run-head">
+            <span style={{ color: l.verdict === "good" ? "#5fdc7a" : "oklch(72% 0.19 30)" }}>{l.verdict === "good" ? "Good" : "Needs work"}</span>
+            <span className="am-dim">
+              {l.by === "you" ? "you" : people.get(l.by) ?? "manager"} · {ago(l.at) || "just now"}{" "}
+              <button className="am-window-close" disabled={busy} onClick={() => void run(() => remove({ companyId, agentId, lessonId: l.id }))} aria-label="Delete lesson">x</button>
+            </span>
+          </div>
+          <div className="am-strong">{l.text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function useClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -171,6 +246,7 @@ function MonitorScreen({ companyId, agentId, onClose }: { companyId: string; age
   const { data, refresh } = usePluginData<AgentDetail>("agent", { companyId, agentId });
   const [tab, setTab] = useState<Tab>("Status");
   const clock = useClock();
+  const people = new Map(useStore((s) => s.agents).map((a) => [a.id, a.name]));
 
   useEffect(() => {
     const timer = setInterval(refresh, POLL_MS);
@@ -219,6 +295,7 @@ function MonitorScreen({ companyId, agentId, onClose }: { companyId: string; age
             {tab === "Terminal" && <TerminalTab data={data} />}
             {tab === "Team" && <TeamTab data={data} />}
             {tab === "Scores" && <ScoresTab data={data} rank={null} of={0} />}
+            {tab === "Lessons" && <LessonsTab companyId={companyId} agentId={agentId} agentName={agent.name} people={people} />}
           </div>
         </div>
       </div>
@@ -334,6 +411,12 @@ const AM_CSS = `
 .am-run { border-top: 1px solid #1f4a2c; padding: 6px 0; }
 .am-run-head { display: flex; justify-content: space-between; color: #9df0b0; }
 .am-error { color: oklch(72% 0.19 30); font-size: 12px; }
+.am-chip { background: none; border: 1px solid #1f4a2c; color: #9df0b0; cursor: pointer; font-family: inherit; font-size: 12px; padding: 3px 10px; }
+.am-chip.is-on { background: #0a2a16; color: #eafff0; border-color: #5fdc7a; }
+.am-chip.is-bad { border-color: oklch(72% 0.19 30); }
+.am-chip:disabled { opacity: 0.5; cursor: default; }
+.am-input { flex: 1; min-width: 0; background: #02130a; border: 1px solid #1f4a2c; color: #c9ffd6; font-family: inherit; font-size: 12px; padding: 4px 8px; }
+.am-input:focus { outline: none; border-color: #5fdc7a; }
 .am-terminal { white-space: pre-wrap; word-break: break-word; background: #02130a; border: 1px solid #1f4a2c; padding: 10px; font-size: 12px; color: #9df0b0; margin: 0; }
 @media (max-width: 480px) {
   .am-body { flex-direction: column; }
