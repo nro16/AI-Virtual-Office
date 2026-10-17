@@ -4,6 +4,7 @@ import type { OfficeAgent, OfficeData } from "../shared/office.js";
 import { deptOrder } from "../shared/org.js";
 import type { OfficeSettings } from "../shared/settings.js";
 import { attireCategory, pickAttireCharacter } from "../shared/roleAttire.js";
+import type { OfficeCharacterName } from "../../vendor/munder-difflin/src/renderer/src/scene/office/cast.js";
 
 const CAST = [
   "jim", "pam", "dwight", "kevin", "angela", "oscar", "stanley",
@@ -13,6 +14,18 @@ const CAST = [
 // truly neutral sprite short of a vendor edit. "Neutral" picks the least-costumed subset.
 const NEUTRAL_CAST = ["kevin", "angela", "oscar", "stanley", "toby", "meredith", "phyllis"] as const;
 const ACCENTS: AccentColorName[] = ["coral", "mint", "sky", "lemon", "lilac", "peach"];
+
+// Local patch: an honorific in the agent's name ("Ms. Gemini", "Mr. Seek") picks a matching cast member.
+const FEMALE_CAST = ["pam", "angela", "kelly", "phyllis", "meredith"] as const;
+const MALE_CAST = ["jim", "dwight", "kevin", "oscar", "stanley", "andy", "ryan", "toby", "creed"] as const;
+
+function honorificCast(name: string, picked: OfficeCharacterName, id: string): OfficeCharacterName {
+  const female = /^\s*(ms|mrs|miss)\b\.?/i.test(name);
+  const male = !female && /^\s*mr\b\.?/i.test(name);
+  if (female && !(FEMALE_CAST as readonly string[]).includes(picked)) return FEMALE_CAST[hash(id) % FEMALE_CAST.length];
+  if (male && (FEMALE_CAST as readonly string[]).includes(picked)) return MALE_CAST[hash(id) % MALE_CAST.length];
+  return picked;
+}
 
 export function hash(text: string): number {
   let h = 0x811c9dc5;
@@ -101,9 +114,13 @@ export function toSceneAgents(data: OfficeData, settings?: OfficeSettings): Agen
   return ordered.map((a) => {
     const character = a.isChief
       ? "michael"
-      : roleAttire && cast === CAST
-        ? pickAttireCharacter(hash(a.id), attireCategory(a.role, a.title))
-        : cast[next++ % cast.length];
+      : honorificCast(
+          a.name,
+          roleAttire && cast === CAST
+            ? pickAttireCharacter(hash(a.id), attireCategory(a.role, a.title))
+            : cast[next++ % cast.length],
+          a.id,
+        );
     return {
       id: a.id,
       name: a.name,
