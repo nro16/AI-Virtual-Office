@@ -23,9 +23,9 @@ Every agent sits at a desk and shows what it's doing right now. Work flies betwe
 
 ---
 
-## What this fork adds
+## What this version adds
 
-This is a fork of [Kshitijm7/paperclip-office](https://github.com/Kshitijm7/paperclip-office), extended for a real four-agent team (Claude, ChatGPT/Codex, Gemini and a local Qwen model through Hermes) running on one Windows PC. The new features were designed for that team and built with AI-assisted coding (Claude Code). Everything upstream still works as described below.
+This project builds on [Kshitijm7/paperclip-office](https://github.com/Kshitijm7/paperclip-office) by Kshitij Mittal, extended for a real four-agent team (Claude, ChatGPT/Codex, Gemini and a local Qwen model through Hermes) running on one Windows PC. The new features were designed for that team and built with AI-assisted coding (Claude Code). Everything upstream still works as described below.
 
 **Boardroom meetings**
 - A **Meeting** button on the floor: call everyone, or pick who comes.
@@ -53,7 +53,7 @@ This is a fork of [Kshitijm7/paperclip-office](https://github.com/Kshitijm7/pape
 
 ## Contents
 
-- [What this fork adds](#what-this-fork-adds)
+- [What this version adds](#what-this-version-adds)
 - [Why](#why)
 - [Features](#features)
 - [Reading the office](#reading-the-office)

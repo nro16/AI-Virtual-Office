@@ -8,6 +8,7 @@ LimeZu tilesets are not included; see CLAUDE.md, Art assets.
 Scandi wood art (assets/free/styles/scandi-wood/v2) was generated for this project from the prompts in
 docs/scandi-tileset-prompt.md and is distributed with the repository.
 
-This fork (https://github.com/nro16/paperclip-office) is modified from the original: it adds boardroom
-meetings, agent lessons and small fixes, listed under "What this fork adds" in README.md.
+This version (https://github.com/nro16/paperclip-office) is modified from the original
+(https://github.com/Kshitijm7/paperclip-office): it adds boardroom meetings, agent lessons and
+small fixes, listed under "What this version adds" in README.md.
 Modifications Copyright 2026 nro16, also licensed under Apache-2.0.
