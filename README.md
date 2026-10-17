@@ -23,8 +23,37 @@ Every agent sits at a desk and shows what it's doing right now. Work flies betwe
 
 ---
 
+## What this fork adds
+
+This is a fork of [Kshitijm7/paperclip-office](https://github.com/Kshitijm7/paperclip-office), extended for a real four-agent team (Claude, ChatGPT/Codex, Gemini and a local Qwen model through Hermes) running on one Windows PC. The new features were designed for that team and built with AI-assisted coding (Claude Code). Everything upstream still works as described below.
+
+**Boardroom meetings**
+- A **Meeting** button on the floor: call everyone, or pick who comes.
+- Attendees walk to the boardroom and sit at the table, spaced along both sides facing each other.
+- A group chat docked inside the office. Each agent answers on its own model through Paperclip agent sessions, with speech bubbles and a "…" over whoever is thinking.
+- Each agent gets at most two short replies per message: one to the user, then one reacting to a colleague by name, then it waits. This keeps token use bounded.
+- **End meeting** has the manager write a recap, and create tasks only if the user asked for them. **Close** sends everyone back to their desks.
+
+**Lessons: a feedback loop into each agent's instructions**
+- A **Lessons** tab in the agent monitor: mark finished work **Good** or **Needs work** with one line on why.
+- The manager can record lessons too, by writing `Lesson for <name> (good|needs work): …` in a review comment. The plugin picks it up from the `issue.comment.created` event.
+- The newest 10 lessons are written into a marked block in that agent's instructions file, so they read them on every run.
+
+**Fixes**
+- Agents present when the scene first builds start at their desks instead of walking in from the door on every tab switch. Moved from a vendor edit into `src/overrides/Character.ts`, so `sync-upstream.ps1 -Verify` passes.
+- "Ms." and "Mr." in an agent's name pick a matching character.
+
+**Engineering notes**
+- The Paperclip host only accepts plugin calls made while the worker is handling a request; calls sent after an action returns are rejected as an expired invocation. So the meeting never calls the host in the background. The open meeting panel calls a `meeting-tick` action every 1.5 s, and the worker sends prompts, collects replies and saves state inside it.
+- Session "done" events can arrive before the run's result is saved. Empty replies are re-read from `heartbeat_runs.result_json` on the next tick instead of being dropped.
+- Plugin tools need a project-scoped run, so manager lessons go through comments, which work with or without projects.
+- New code is covered by tests: `tests/meeting.spec.ts` and `tests/lessons.spec.ts`, with seat finding, reply rules, prompt rules and lesson parsing all tested without a live server.
+
+---
+
 ## Contents
 
+- [What this fork adds](#what-this-fork-adds)
 - [Why](#why)
 - [Features](#features)
 - [Reading the office](#reading-the-office)
