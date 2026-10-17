@@ -33,7 +33,7 @@ function candidatesFor(agents: OfficeAgent[]): SearchCandidate[] {
   }));
 }
 
-function Avatar({ agentId }: { agentId: string }) {
+export function Avatar({ agentId }: { agentId: string }) {
   const character = useStore((s) => s.agents.find((a) => a.id === agentId)?.character);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

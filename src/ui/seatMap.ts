@@ -88,6 +88,85 @@ export function getEntranceTile(): Tile | null {
   return spawnPoints(sceneMap).get("entrance") ?? null;
 }
 
+export interface MeetingSeat {
+  tile: Tile;
+  facing: "up" | "down" | "left" | "right";
+}
+
+/** Chairs around the boardroom table: walkable tiles touching the biggest blocked block that stays clear of
+ *  the room's edge (the table, not the wall decor), each facing the table. Ordered top/bottom pairs from
+ *  the left, so attendees sit across from each other; chairs at the table ends come last. */
+export function getBoardroomSeats(): MeetingSeat[] {
+  if (!sceneMap) return [];
+  const map = sceneMap;
+  const marked = boardroomZone(map);
+  if (!marked) return [];
+  // The generated floor marks only the template's 5 interior rows; styled rooms run deeper and the table
+  // sits below that, so search twice the marked height. The room's walls touch the search edge and drop out.
+  const zone = { ...marked, height: Math.min(marked.height * 2, map.height - marked.y) };
+  const inZone = (x: number, y: number) => x >= zone.x && y >= zone.y && x < zone.x + zone.width && y < zone.y + zone.height;
+  const key = (x: number, y: number) => `${x},${y}`;
+
+  const seen = new Set<string>();
+  let table: Set<string> | null = null;
+  for (let y = zone.y; y < zone.y + zone.height; y++) {
+    for (let x = zone.x; x < zone.x + zone.width; x++) {
+      if (seen.has(key(x, y)) || isWalkable(map, x, y)) continue;
+      const blob = new Set<string>();
+      let edge = false;
+      const stack: Tile[] = [{ x, y }];
+      seen.add(key(x, y));
+      while (stack.length) {
+        const t = stack.pop()!;
+        blob.add(key(t.x, t.y));
+        if (t.x === zone.x || t.y === zone.y || t.x === zone.x + zone.width - 1 || t.y === zone.y + zone.height - 1) edge = true;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = t.x + dx, ny = t.y + dy;
+          if (!inZone(nx, ny) || seen.has(key(nx, ny)) || isWalkable(map, nx, ny)) continue;
+          seen.add(key(nx, ny));
+          stack.push({ x: nx, y: ny });
+        }
+      }
+      if (!edge && (!table || blob.size > table.size)) table = blob;
+    }
+  }
+  if (!table) return [];
+
+  const seats: MeetingSeat[] = [];
+  const dirs: [number, number, MeetingSeat["facing"]][] = [[0, 1, "down"], [0, -1, "up"], [1, 0, "right"], [-1, 0, "left"]];
+  for (let y = zone.y; y < zone.y + zone.height; y++) {
+    for (let x = zone.x; x < zone.x + zone.width; x++) {
+      if (!isWalkable(map, x, y)) continue;
+      const hit = dirs.find(([dx, dy]) => table!.has(key(x + dx, y + dy)));
+      if (hit) seats.push({ tile: { x, y }, facing: hit[2] });
+    }
+  }
+  const byX = (a: MeetingSeat, b: MeetingSeat) => a.tile.x - b.tile.x || a.tile.y - b.tile.y;
+  const top = seats.filter((s) => s.facing === "down").sort(byX);
+  const bottom = seats.filter((s) => s.facing === "up").sort(byX);
+  const sides = seats.filter((s) => s.facing === "left" || s.facing === "right").sort(byX);
+  const paired: MeetingSeat[] = [];
+  for (let i = 0; i < Math.max(top.length, bottom.length); i++) {
+    if (top[i]) paired.push(top[i]);
+    if (bottom[i]) paired.push(bottom[i]);
+  }
+  return [...paired, ...sides];
+}
+
+/** Spaces a small group evenly along the table instead of bunching them at one end, so nameplates don't overlap.
+ *  `chairs` is getBoardroomSeats' order: across-the-table pairs (top, bottom, top, bottom…), then the ends. */
+export function spreadSeats(chairs: MeetingSeat[], count: number): MeetingSeat[] {
+  const pairs = chairs.filter((c) => c.facing === "down").length;
+  const needed = Math.ceil(count / 2);
+  if (count === 0 || needed > pairs || chairs.filter((c) => c.facing === "up").length < pairs) return chairs.slice(0, count);
+  const out: MeetingSeat[] = [];
+  for (let i = 0; i < count; i++) {
+    const pair = Math.round(((Math.floor(i / 2) + 0.5) * pairs) / needed - 0.5);
+    out.push(chairs[pair * 2 + (i % 2)]);
+  }
+  return out;
+}
+
 /** BFS path between two tiles on the currently loaded map (vendor's own pathfinder, no map instance needed). */
 export function findWalkPath(from: Tile, to: Tile): Tile[] | null {
   if (!sceneMap) return null;

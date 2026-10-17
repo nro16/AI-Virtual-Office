@@ -20,6 +20,7 @@ import { SceneControls } from "./SceneControls.js";
 import { OrgPanel } from "./OrgPanel.js";
 import { Collapsible } from "./Collapsible.js";
 import { WallOfFame } from "./WallOfFame.js";
+import { MeetingRoom } from "./MeetingRoom.js";
 import { tokens } from "./tokens.js";
 import { useOffice } from "./useOffice.js";
 import { STATE_COLOR } from "./stateColors.js";
@@ -326,6 +327,7 @@ export function OfficePage({ context }: PluginPageProps) {
         {(data?.settings.rosterSidebar ?? true) && <RosterSidebar data={data ?? null} bubblesOn={data?.settings.bubbles !== "none"} onToggleBubbles={() => changePrefs({ bubbles: data?.settings.bubbles === "none" ? "activity" : "none" })} />}
         <WallOfFame companyId={companyId} office={data ?? null} />
         {/* Inside the fullscreen element, or the browser hides it in fullscreen. */}
+        <MeetingRoom companyId={companyId} data={data ?? null} />
         <AgentMonitor companyId={companyId} />
         {decisionBoxOn && <DecisionBox companyId={companyId} items={pendingDecisions} onDecided={onDecided} />}
         {(data?.settings.search ?? true) && <AgentSearch data={data ?? null} />}
